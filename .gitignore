@@ -1,0 +1,16 @@
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.venv312/
+.venv-railway/
+apps/mcp_server/build/
+apps/mcp_server/*.egg-info/
+node_modules/
+**/node_modules/
+dist/
+.wrangler/
+coverage/
+__pycache__/
+*.pyc
+.env

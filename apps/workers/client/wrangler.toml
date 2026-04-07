@@ -1,0 +1,7 @@
+name = "google-ga4-mcp-client"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+BACKEND_URL = "https://google-ga4-mcp-production.up.railway.app"
+TENANT_ID = "tenant_example"

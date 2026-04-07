@@ -1,0 +1,5 @@
+BACKEND_URL="https://google-ga4-mcp-production.up.railway.app"
+TENANT_ID="tenant-example"
+WORKER_KEY_ID="worker-client-example"
+WORKER_SECRET="replace-me"
+INBOUND_AUTH_TOKEN="optional-inbound-token"

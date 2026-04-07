@@ -1,0 +1,11 @@
+.git
+.gitignore
+.DS_Store
+node_modules
+**/__pycache__
+**/.pytest_cache
+**/.venv
+apps/workers/node_modules
+apps/workers/.wrangler
+docs
+infra
