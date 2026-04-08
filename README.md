@@ -33,6 +33,8 @@ pytest
 cd apps/workers
 npm install
 npm run typecheck
+cp admin/wrangler.toml.template admin/wrangler.toml
+cp client/wrangler.toml.template client/wrangler.toml
 ```
 
 ### Deploy
@@ -43,6 +45,12 @@ npm run deploy:admin
 npm run deploy:client
 ```
 
+Before deploy, create local Worker configs from the templates:
+
+- `apps/workers/admin/wrangler.toml.template`
+- `apps/workers/client/wrangler.toml.template`
+
+The real `wrangler.toml` files are gitignored on purpose.
 Both deploy scripts use `--keep-vars`, so Worker names, vars and secrets configured in the Cloudflare dashboard are preserved.
 
 ## Railway deploy
@@ -71,6 +79,7 @@ Required backend environment variables on Railway:
 - runbook: [docs/runbook.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/runbook.md)
 - deploy guide: [docs/deploy.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/deploy.md)
 - setup guide: [docs/setup.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/setup.md)
+- validation log: [docs/validation.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/validation.md)
 - architecture: [docs/architecture.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/architecture.md)
 - Google OAuth: [docs/google-oauth.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/google-oauth.md)
 

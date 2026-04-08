@@ -25,3 +25,5 @@
 - If a new property is visible in Google but not in the MCP, run `sync_account_properties`.
 - If a client worker returns permission errors, confirm the property is in the tenant allowlist.
 - If Google API requests fail, verify the Railway OAuth env vars and the Google account permissions on the target property.
+- If conversion reports return zero rows but event reports show activity, verify whether the event is marked as a GA4 key event.
+- If `sessionDefaultChannelGroup = Unassigned`, inspect `sessionSourceMedium`. If it is `(not set)`, the event is arriving without attributable session source/medium.

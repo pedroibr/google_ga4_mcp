@@ -68,6 +68,8 @@ Install dependencies once:
 ```bash
 cd apps/workers
 npm install
+cp admin/wrangler.toml.template admin/wrangler.toml
+cp client/wrangler.toml.template client/wrangler.toml
 ```
 
 Verify Cloudflare auth:
@@ -75,6 +77,13 @@ Verify Cloudflare auth:
 ```bash
 npx wrangler whoami
 ```
+
+The repository keeps only:
+
+- `apps/workers/admin/wrangler.toml.template`
+- `apps/workers/client/wrangler.toml.template`
+
+Create local `wrangler.toml` files from those templates before deploying.
 
 ### Client worker variables
 
@@ -134,7 +143,18 @@ Call the admin worker with:
 3. `get_active_context`
 4. `get_traffic_overview`
 
-## 6. Admin API
+## 6. Production state documented on April 7, 2026
+
+See [docs/validation.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/validation.md) for the live validation log covering:
+
+- Railway health checks
+- tenant onboarding
+- Cloudflare Worker deployment
+- live analytics checks for `Luis-Alves`
+- live analytics checks for `Okudus-Crislei-Leonel`
+- investigation notes for `Unassigned` `generate_lead` traffic
+
+## 7. Admin API
 
 The backend also exposes a separate admin API under `/api/v1`.
 

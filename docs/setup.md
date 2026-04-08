@@ -35,6 +35,10 @@ uvicorn app.main:app --reload
 cd apps/workers
 npm install
 npm run typecheck
+cp admin/wrangler.toml.template admin/wrangler.toml
+cp client/wrangler.toml.template client/wrangler.toml
 ```
 
 Use the `.dev.vars.example` files in `apps/workers/admin` and `apps/workers/client` as the starting point for local Wrangler secrets.
+
+The real `wrangler.toml` files are intentionally gitignored. Only the templates stay in the repository.

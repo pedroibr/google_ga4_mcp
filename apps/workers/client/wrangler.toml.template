@@ -3,5 +3,5 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
 [vars]
-BACKEND_URL = "https://google-ga4-mcp-production.up.railway.app"
+BACKEND_URL = "https://your-backend.up.railway.app"
 TENANT_ID = "tenant_example"
