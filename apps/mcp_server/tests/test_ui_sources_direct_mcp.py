@@ -198,6 +198,78 @@ def test_direct_mcp_public_token_auth(tmp_path: Path, monkeypatch) -> None:
     assert response.json()["result"]["tools"]
 
 
+def test_direct_mcp_keeps_context_from_mcp_meta_session_key(tmp_path: Path, monkeypatch) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'test.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("ADMIN_UI_PASSWORD", "admin-pass")
+    monkeypatch.setenv("ADMIN_SESSION_SECRET", "admin-session-secret")
+    monkeypatch.setenv("CLIENT_TOKEN_SALT", "client-token-salt")
+    monkeypatch.setenv("CREDENTIALS_ENCRYPTION_KEY", "credentials-key")
+    monkeypatch.setenv("APP_BASE_URL", "https://ga4.example.com")
+    monkeypatch.setenv("ADMIN_API_SHARED_SECRET", "admin-secret")
+    get_settings.cache_clear()
+    app, _ = create_mcp_server()
+    client = TestClient(app)
+
+    settings = get_settings()
+    factory = _session_factory(settings)
+    platform = PlatformService(settings)
+    with factory() as session:
+        source = platform.save_source(
+            session,
+            slug="agency-google",
+            display_name="Agency Google",
+            client_id="google-client-id",
+            client_secret="google-client-secret",
+            refresh_token="google-refresh-token",
+            status="active",
+        )
+        platform.create_client(session, slug="luis", display_name="Luis Analytics")
+        _add_asset(session, "123456789", "Luis Main", source.id)
+        _add_asset(session, "987654321", "Luis Blog", source.id)
+        platform.set_client_properties(
+            session,
+            client_slug="luis",
+            property_ids=["123456789", "987654321"],
+            default_property_id="123456789",
+        )
+        bearer_token = platform.rotate_bearer_token(session, "luis")
+
+    response = client.post(
+        "/mcp/ga4/clients/luis",
+        headers={"Authorization": f"Bearer {bearer_token}"},
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "_meta": {"session_id": "meta-session-1"},
+                "name": "select_my_property",
+                "arguments": {"query": "blog"},
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert '"active_property_id": "987654321"' in response.json()["result"]["content"][0]["text"]
+
+    response = client.post(
+        "/mcp/ga4/clients/luis",
+        headers={"Authorization": f"Bearer {bearer_token}"},
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "_meta": {"session_id": "meta-session-1"},
+                "name": "get_active_context",
+                "arguments": {},
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert '"active_property_id": "987654321"' in response.json()["result"]["content"][0]["text"]
+
+
 def _add_asset(session: Session, property_id: str, display_name: str, source_id: int) -> None:
     session.add(
         AssetDirectory(
@@ -213,4 +285,3 @@ def _add_asset(session: Session, property_id: str, display_name: str, source_id:
         )
     )
     session.commit()
-

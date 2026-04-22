@@ -41,7 +41,17 @@ def create_direct_mcp_router(settings: Settings, session_factory: sessionmaker[S
             try:
                 client = platform.authenticate_bearer(session, client_slug, token)
                 body = await request.json()
-                payload = await handle_mcp_body(request, body, session, settings, session_factory, platform, resolver, client)
+                payload = await handle_mcp_body(
+                    request,
+                    body,
+                    session,
+                    settings,
+                    session_factory,
+                    platform,
+                    resolver,
+                    client,
+                    auth_mode="bearer",
+                )
                 return mcp_response(request, payload)
             except PermissionError as exc:
                 return JSONResponse({"detail": str(exc)}, status_code=401)
@@ -54,7 +64,17 @@ def create_direct_mcp_router(settings: Settings, session_factory: sessionmaker[S
             try:
                 client = platform.authenticate_public(session, public_token)
                 body = await request.json()
-                payload = await handle_mcp_body(request, body, session, settings, session_factory, platform, resolver, client)
+                payload = await handle_mcp_body(
+                    request,
+                    body,
+                    session,
+                    settings,
+                    session_factory,
+                    platform,
+                    resolver,
+                    client,
+                    auth_mode="public",
+                )
                 return mcp_response(request, payload)
             except PermissionError as exc:
                 return JSONResponse({"detail": str(exc)}, status_code=401)
@@ -81,6 +101,7 @@ async def handle_mcp_body(
     platform: PlatformService,
     resolver: AssetResolver,
     client: Tenant,
+    auth_mode: str,
 ) -> dict[str, Any]:
     request_id = body.get("id")
     method = body.get("method")
@@ -105,6 +126,7 @@ async def handle_mcp_body(
         arguments = params.get("arguments") or {}
         if not isinstance(arguments, dict):
             return error(request_id, -32602, "arguments must be an object")
+        session_key_value = extract_session_key(request, body, arguments, auth_mode, client.slug)
         try:
             value = await execute_tool(
                 request,
@@ -116,6 +138,7 @@ async def handle_mcp_body(
                 client,
                 tool_name,
                 arguments,
+                session_key_value,
             )
             return result(request_id, text_tool_result(value))
         except Exception as exc:
@@ -133,12 +156,13 @@ async def execute_tool(
     client: Tenant,
     tool_name: str,
     args: dict[str, Any],
+    session_key_value: str,
 ) -> dict[str, Any]:
     properties = platform.list_client_properties(session, client.id)
     multi_property = len(properties) > 1
 
     if tool_name == "get_active_context":
-        context = resolve_active_context(session, platform, client, session_key(request, args))
+        context = resolve_active_context(session, platform, client, session_key_value)
         return context.model_dump()
 
     if tool_name in {"list_my_properties", "select_my_property", "clear_active_context"} and not multi_property:
@@ -169,15 +193,15 @@ async def execute_tool(
         if resolved.get("resolved") and resolved.get("context"):
             context = OperationalContext.model_validate(resolved["context"])
             context.source_id = source_id_for_property(session, client.id, context.active_property_id)
-            save_client_context(session, client.id, session_key(request, args), context)
+            save_client_context(session, client.id, session_key_value, context)
             resolved["context"] = context.model_dump()
         return resolved
 
     if tool_name == "clear_active_context":
-        clear_client_context(session, client.id, session_key(request, args))
+        clear_client_context(session, client.id, session_key_value)
         return {"cleared": True}
 
-    context = resolve_active_context(session, platform, client, session_key(request, args))
+    context = resolve_active_context(session, platform, client, session_key_value)
     services = build_services_for_context(settings, session_factory, session, context)
 
     if tool_name == "get_property_details":
@@ -443,11 +467,38 @@ def extract_bearer(authorization: str | None) -> str | None:
     return authorization.split(" ", 1)[1].strip() or None
 
 
-def session_key(request: Request, args: dict[str, Any]) -> str:
-    return (
+def extract_session_key(
+    request: Request,
+    body: dict[str, Any],
+    args: dict[str, Any],
+    auth_mode: str,
+    client_slug: str,
+) -> str:
+    params = body.get("params") if isinstance(body.get("params"), dict) else {}
+    assert isinstance(params, dict)
+    meta = params.get("_meta") if isinstance(params.get("_meta"), dict) else {}
+    assert isinstance(meta, dict)
+    arg_meta = args.get("_meta") if isinstance(args.get("_meta"), dict) else {}
+    assert isinstance(arg_meta, dict)
+
+    from_header = (
         request.headers.get("mcp-session-id")
+        or request.headers.get("x-session-id")
         or request.headers.get("x-openai-session")
         or request.headers.get("x-openai-subject")
-        or str(args.get("session_id") or args.get("sessionId") or "")
-        or "default"
     )
+    from_body = (
+        _string(params.get("session_id"))
+        or _string(params.get("sessionId"))
+        or _string(meta.get("session_id"))
+        or _string(meta.get("sessionId"))
+        or _string(args.get("session_id"))
+        or _string(args.get("sessionId"))
+        or _string(arg_meta.get("session_id"))
+        or _string(arg_meta.get("sessionId"))
+    )
+    return from_header or from_body or f"implicit:{auth_mode}:{client_slug}:ga4"
+
+
+def _string(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
