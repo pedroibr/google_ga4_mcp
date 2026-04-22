@@ -36,8 +36,35 @@ class Tenant(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     slug: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[TenantStatus] = mapped_column(SqlEnum(TenantStatus), default=TenantStatus.active)
     default_property_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    bearer_token_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    public_token_hash: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    public_enabled: Mapped[bool] = mapped_column(default=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_public_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class SourceStatus(str, Enum):
+    active = "active"
+    disabled = "disabled"
+
+
+class Source(Base):
+    __tablename__ = "sources"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(255))
+    status: Mapped[SourceStatus] = mapped_column(SqlEnum(SourceStatus), default=SourceStatus.active)
+    encrypted_client_id: Mapped[str] = mapped_column(Text)
+    encrypted_client_secret: Mapped[str] = mapped_column(Text)
+    encrypted_refresh_token: Mapped[str] = mapped_column(Text)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -48,6 +75,7 @@ class TenantAssetPolicy(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id"), index=True)
     property_id: Mapped[str] = mapped_column(String(128), index=True)
+    source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"), nullable=True, index=True)
     is_default: Mapped[bool] = mapped_column(default=False)
     label_snapshot: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
@@ -77,6 +105,7 @@ class AssetDirectory(Base):
     display_name: Mapped[str] = mapped_column(String(255), index=True)
     normalized_name: Mapped[str] = mapped_column(String(255), index=True)
     account_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"), nullable=True, index=True)
     measurement_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
     default_uri: Mapped[str | None] = mapped_column(String(512), nullable=True)
     tenant_id: Mapped[str | None] = mapped_column(ForeignKey("tenants.id"), nullable=True, index=True)
@@ -108,5 +137,18 @@ class WorkerSessionContext(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     worker_key_id: Mapped[str] = mapped_column(String(128), index=True)
     worker_session_id: Mapped[str] = mapped_column(String(255), index=True)
+    context_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class ClientSessionContext(Base):
+    __tablename__ = "client_session_contexts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "session_key", name="uq_client_session_context"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id"), index=True)
+    session_key: Mapped[str] = mapped_column(String(255), index=True)
     context_json: Mapped[dict] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

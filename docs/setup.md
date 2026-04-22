@@ -7,38 +7,32 @@ cd apps/mcp_server
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-pytest
 ```
 
-Create `.env` with at least:
+Create `.env`:
 
-```env
+```bash
 APP_ENV=development
 DATABASE_URL=sqlite+pysqlite:///./local.db
-GOOGLE_OAUTH_CLIENT_ID=...
-GOOGLE_OAUTH_CLIENT_SECRET=...
-GOOGLE_OAUTH_REFRESH_TOKEN=...
-WORKER_SHARED_SECRET_SALT=change-me
-ADMIN_API_SHARED_SECRET=change-me
-REQUEST_TTL_SECONDS=300
+APP_BASE_URL=http://localhost:8000
+ADMIN_UI_PASSWORD=change-me
+ADMIN_SESSION_SECRET=change-me-long-random
+CLIENT_TOKEN_SALT=change-me-long-random
+CREDENTIALS_ENCRYPTION_KEY=change-me-long-random
 ```
 
-Run locally:
+Run:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-## Workers
+Open:
 
-```bash
-cd apps/workers
-npm install
-npm run typecheck
-cp admin/wrangler.toml.template admin/wrangler.toml
-cp client/wrangler.toml.template client/wrangler.toml
+```text
+http://localhost:8000/admin
 ```
 
-Use the `.dev.vars.example` files in `apps/workers/admin` and `apps/workers/client` as the starting point for local Wrangler secrets.
+## Google Source Credentials
 
-The real `wrangler.toml` files are intentionally gitignored. Only the templates stay in the repository.
+For each source, paste the Google OAuth client ID, client secret, and refresh token into the UI. The backend encrypts these values and uses them to sync GA4 assets and refresh Google access tokens.

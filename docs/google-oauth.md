@@ -1,17 +1,11 @@
 # Google OAuth
 
-The backend authenticates to Google Analytics using a single OAuth refresh token stored in Railway environment variables.
+Each source in the admin UI stores one Google OAuth credential set:
 
-Required variables:
+- OAuth client ID
+- OAuth client secret
+- refresh token
 
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `GOOGLE_OAUTH_CLIENT_SECRET`
-- `GOOGLE_OAUTH_REFRESH_TOKEN`
+Use a Google user that can access the GA4 accounts/properties you want to expose. After saving the source, run sync in the UI to import the visible GA4 properties and streams.
 
-The backend refreshes short-lived access tokens automatically and uses the authenticated Google account to list GA4 properties, read Admin API metadata, and execute Data API reports.
-
-Recommended OAuth scopes for the connected Google account:
-
-- Google Analytics read-only access to the GA4 properties you want to expose
-
-Keep the OAuth credentials only in the backend. Cloudflare Workers should never receive Google OAuth secrets.
+Credentials are encrypted in the backend database and are never exposed through MCP responses.

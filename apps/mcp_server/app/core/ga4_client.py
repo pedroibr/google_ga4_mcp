@@ -16,6 +16,13 @@ class OAuthToken:
     expires_at: datetime
 
 
+@dataclass(slots=True)
+class GA4Credentials:
+    client_id: str
+    client_secret: str
+    refresh_token: str
+
+
 class GA4ApiError(RuntimeError):
     def __init__(
         self,
@@ -56,8 +63,9 @@ class GA4Client:
     ADMIN_API_BASE_URL = "https://analyticsadmin.googleapis.com/v1beta"
     TOKEN_URL = "https://oauth2.googleapis.com/token"
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, credentials: GA4Credentials | None = None):
         self._settings = settings
+        self._credentials = credentials
         self._token: OAuthToken | None = None
 
     async def list_account_summaries(self) -> dict[str, Any]:
@@ -152,24 +160,25 @@ class GA4Client:
         if self._token is not None and self._token.expires_at > datetime.now(timezone.utc) + timedelta(minutes=1):
             return self._token.access_token
 
-        required = (
-            self._settings.google_oauth_client_id,
-            self._settings.google_oauth_client_secret,
-            self._settings.google_oauth_refresh_token,
+        credentials = self._credentials or GA4Credentials(
+            client_id=self._settings.google_oauth_client_id,
+            client_secret=self._settings.google_oauth_client_secret,
+            refresh_token=self._settings.google_oauth_refresh_token,
         )
+        required = (credentials.client_id, credentials.client_secret, credentials.refresh_token)
         if any(not item.strip() for item in required):
             raise GA4ApiError(
                 operation="refresh_access_token",
                 method="POST",
                 url=self.TOKEN_URL,
-                message="Missing Google OAuth credentials in environment",
+                message="Missing Google OAuth credentials",
                 error_type="configuration_error",
             )
 
         payload = {
-            "client_id": self._settings.google_oauth_client_id,
-            "client_secret": self._settings.google_oauth_client_secret,
-            "refresh_token": self._settings.google_oauth_refresh_token,
+            "client_id": credentials.client_id,
+            "client_secret": credentials.client_secret,
+            "refresh_token": credentials.refresh_token,
             "grant_type": "refresh_token",
         }
         async with httpx.AsyncClient(timeout=30.0) as client:

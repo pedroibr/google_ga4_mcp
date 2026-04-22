@@ -7,10 +7,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_env: str = Field(default="development", alias="APP_ENV")
     app_name: str = "google-ga4-mcp"
+    app_base_url: str = Field(default="", alias="APP_BASE_URL")
     database_url: str = Field(
         default="sqlite+pysqlite:///:memory:",
         alias="DATABASE_URL",
     )
+    admin_ui_password: str = Field(default="admin", alias="ADMIN_UI_PASSWORD")
+    admin_session_secret: str = Field(default="dev-admin-session-secret", alias="ADMIN_SESSION_SECRET")
+    client_token_salt: str = Field(default="dev-client-token-salt", alias="CLIENT_TOKEN_SALT")
+    credentials_encryption_key: str = Field(default="dev-credentials-encryption-key", alias="CREDENTIALS_ENCRYPTION_KEY")
     google_oauth_client_id: str = Field(default="", alias="GOOGLE_OAUTH_CLIENT_ID")
     google_oauth_client_secret: str = Field(default="", alias="GOOGLE_OAUTH_CLIENT_SECRET")
     google_oauth_refresh_token: str = Field(default="", alias="GOOGLE_OAUTH_REFRESH_TOKEN")
