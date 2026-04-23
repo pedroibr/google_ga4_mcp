@@ -15,6 +15,7 @@ class ExecutionProfile(str, Enum):
 class OperationalContext(BaseModel):
     tenant_id: str | None = None
     active_property_id: str | None = None
+    source_id: int | None = None
     resolved_from_query: str | None = None
     resolved_from_property_id: str | None = None
 

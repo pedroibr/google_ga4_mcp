@@ -1,23 +1,19 @@
 # Google GA4 MCP
 
-Multi-tenant Google Analytics 4 MCP with:
+Multi-client Google Analytics 4 MCP gateway with:
 
-- a private Python MCP server on Railway
-- client-scoped Cloudflare Workers
-- an admin Cloudflare Worker with persisted property context
-- tenant policies over allowed GA4 property IDs
+- one FastAPI backend
+- an admin UI for clients, Google sources, and GA4 asset links
+- per-client MCP bearer/public URLs
+- encrypted Google OAuth credentials per source
 
 ## Layout
 
-- `apps/mcp_server/`: FastAPI + FastMCP backend
-- `apps/workers/client/`: client-scoped worker
-- `apps/workers/admin/`: admin worker with persisted property context
-- `docs/`: setup and deployment notes
-- `infra/`: deploy examples
+- `apps/mcp_server/`: FastAPI backend, admin UI, direct MCP endpoints, GA4 tools
+- `docs/`: setup, deployment, and architecture notes
+- `infra/railway/`: Railway deployment notes
 
-## Quick start
-
-### Backend
+## Quick Start
 
 ```bash
 cd apps/mcp_server
@@ -27,65 +23,49 @@ pip install -e ".[dev]"
 pytest
 ```
 
-### Workers
+Run locally:
 
 ```bash
-cd apps/workers
-npm install
-npm run typecheck
-cp admin/wrangler.toml.template admin/wrangler.toml
-cp client/wrangler.toml.template client/wrangler.toml
+uvicorn app.main:app --reload
 ```
 
-### Deploy
+Open `/admin`, create a source with Google OAuth credentials, sync GA4 assets, create a client, link one or more assets, then rotate the client bearer token.
 
-```bash
-cd apps/workers
-npm run deploy:admin
-npm run deploy:client
-```
-
-Before deploy, create local Worker configs from the templates:
-
-- `apps/workers/admin/wrangler.toml.template`
-- `apps/workers/client/wrangler.toml.template`
-
-The real `wrangler.toml` files are gitignored on purpose.
-Both deploy scripts use `--keep-vars`, so Worker names, vars and secrets configured in the Cloudflare dashboard are preserved.
-
-## Railway deploy
-
-This repository includes a root `Dockerfile` for the backend, so Railway can deploy it directly from the repository root.
-
-Recommended Railway service config:
-
-- root directory: repository root
-- builder: Dockerfile autodetect
-- start command: none, use the Docker `CMD`
-
-Required backend environment variables on Railway:
+## Required Environment
 
 - `APP_ENV=production`
-- `DATABASE_URL=<railway postgres url>`
-- `GOOGLE_OAUTH_CLIENT_ID=<google oauth client id>`
-- `GOOGLE_OAUTH_CLIENT_SECRET=<google oauth client secret>`
-- `GOOGLE_OAUTH_REFRESH_TOKEN=<google oauth refresh token>`
-- `WORKER_SHARED_SECRET_SALT=<random-long-secret>`
-- `ADMIN_API_SHARED_SECRET=<shared-secret-for-/api/v1>`
-- `REQUEST_TTL_SECONDS=300`
+- `DATABASE_URL=<postgres url>`
+- `APP_BASE_URL=<public backend url>`
+- `ADMIN_UI_PASSWORD=<admin login password>`
+- `ADMIN_SESSION_SECRET=<random-long-secret>`
+- `CLIENT_TOKEN_SALT=<random-long-secret>`
+- `CREDENTIALS_ENCRYPTION_KEY=<random-long-secret>`
 
-## Operations
+`ADMIN_API_SHARED_SECRET` is still accepted for the legacy tenant API, but it is not part of the primary UI-based flow.
 
-- runbook: [docs/runbook.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/runbook.md)
-- deploy guide: [docs/deploy.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/deploy.md)
-- setup guide: [docs/setup.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/setup.md)
-- validation log: [docs/validation.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/validation.md)
-- architecture: [docs/architecture.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/architecture.md)
-- Google OAuth: [docs/google-oauth.md](/Users/pedroivoborgesraimundo/dev/google_ga4_mcp/docs/google-oauth.md)
+## MCP URLs
 
-## Security model
+Authenticated client URL:
 
-- Google OAuth credentials live only in the backend.
-- Workers authenticate to the backend with worker-specific secrets and HMAC signatures.
-- Client workers never choose arbitrary tenant ids or property ids.
-- Admin flows operate through an explicit property context resolved from synced properties.
+```text
+https://<backend>/mcp/ga4/clients/<client-slug>
+```
+
+Use:
+
+```text
+Authorization: Bearer <client-token>
+```
+
+Optional public URL:
+
+```text
+https://<backend>/mcp/ga4/public/<public-token>
+```
+
+## Security Model
+
+- Google OAuth credentials are stored only in the backend and encrypted at rest.
+- Each source represents one Google user/account credential set.
+- Clients receive only the GA4 assets explicitly linked in the UI.
+- Context-switching tools are shown only when a client has more than one linked GA4 asset.

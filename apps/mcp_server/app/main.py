@@ -1,23 +1,15 @@
 from __future__ import annotations
 
 import os
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
 
 from app.api.admin_api import create_admin_api_router
-from app.api.internal_auth import InternalAuthService
-from app.api.mcp_http import MCPAuthenticationMiddleware
+from app.api.admin_ui import create_admin_ui_router
+from app.api.direct_mcp import create_direct_mcp_router
 from app.config import get_settings
-from app.core.asset_resolver import AssetResolver
-from app.core.audit import AuditService
-from app.core.ga4_client import GA4Client
-from app.core.policy import PolicyService
 from app.db.session import create_session_factory
-from app.tools.context_tools import register_context_tools
-from app.tools.ga4_tools import register_ga4_tools
-from app.tools.services import ToolServices
 
 
 def _extend_transport_security_allowed_hosts(mcp: FastMCP) -> None:
@@ -48,32 +40,11 @@ def _extend_transport_security_allowed_hosts(mcp: FastMCP) -> None:
 def create_mcp_server() -> tuple[FastAPI, FastMCP]:
     settings = get_settings()
     session_factory = create_session_factory(settings)
-    services = ToolServices(
-        session_factory=session_factory,
-        policy_service=PolicyService(),
-        asset_resolver=AssetResolver(),
-        ga4_client=GA4Client(settings),
-        audit_service=AuditService(),
-    )
-    auth_service = InternalAuthService(settings)
 
     mcp = FastMCP(settings.app_name)
-    register_context_tools(mcp, services)
-    register_ga4_tools(mcp, services)
     _extend_transport_security_allowed_hosts(mcp)
-    mcp_app = mcp.streamable_http_app()
 
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        async with mcp.session_manager.run():
-            yield
-
-    app = FastAPI(title=settings.app_name, lifespan=lifespan)
-    app.add_middleware(
-        MCPAuthenticationMiddleware,
-        session_factory=session_factory,
-        auth_service=auth_service,
-    )
+    app = FastAPI(title=settings.app_name)
 
     @app.get("/healthz")
     async def healthz() -> dict:
@@ -83,12 +54,9 @@ def create_mcp_server() -> tuple[FastAPI, FastMCP]:
     async def health() -> dict:
         return {"status": "ok", "app": settings.app_name}
 
-    @app.get("/")
-    async def root() -> dict:
-        return {"status": "ok", "app": settings.app_name, "service": "google-ga4-mcp"}
-
     app.include_router(create_admin_api_router(settings, session_factory))
-    app.mount("/mcp", mcp_app)
+    app.include_router(create_direct_mcp_router(settings, session_factory))
+    app.include_router(create_admin_ui_router(settings, session_factory))
     return app, mcp
 
 

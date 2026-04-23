@@ -41,6 +41,7 @@ class PropertySearchCandidate(BaseModel):
     display_name: str
     property_type: str
     account_id: str | None
+    source_id: int | None = None
     measurement_ids: list[str]
     default_uri: str | None
     tenant_id: str | None
@@ -130,6 +131,7 @@ class AssetResolver:
                 display_name=row.display_name,
                 property_type=row.property_type,
                 account_id=row.account_id,
+                source_id=row.source_id,
                 measurement_ids=list(row.measurement_ids or []),
                 default_uri=row.default_uri,
                 tenant_id=row.tenant_id,
@@ -165,6 +167,7 @@ class AssetResolver:
                     display_name=row.display_name,
                     property_type=row.property_type,
                     account_id=row.account_id,
+                    source_id=row.source_id,
                     measurement_ids=list(row.measurement_ids or []),
                     default_uri=row.default_uri,
                     tenant_id=row.tenant_id,
@@ -307,6 +310,7 @@ class AssetResolver:
             "display_name": row.display_name,
             "property_type": row.property_type,
             "account_id": row.account_id,
+            "source_id": row.source_id,
             "measurement_ids": list(row.measurement_ids or []),
             "default_uri": row.default_uri,
         }
